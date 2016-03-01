@@ -1,7 +1,7 @@
 import itertools
 from enum import IntEnum
 
-BASE = 11172
+BASE = 10
 
 
 class Sign(IntEnum):
@@ -290,25 +290,38 @@ class Base11172:
             data[-1] = carry
         return data
 
-    # def __floordiv__(self, other):
-    #     if not isinstance(other, Base11172):
-    #         other = Base11172(other)
-    #     a = self
-    #     b = other
-    #     if self == other:
-    #         return 1
-    #     elif self < other:
-    #         return 0
-    #     else:   # self > other
-    #         count = len(a) - len(b)
-    #         tmp = b << count
-    #         result = [0] * (count+1)
-    #         for i in range(count, -1, -1):
-    #             while a > tmp:
-    #                 a = a - tmp
-    #                 result[i] += 1
-    #             tmp = tmp >> 1
-    #         return Base11172(result)
+    def __floordiv__(self, other):
+        if not isinstance(other, Base11172):
+            other = Base11172(other)
+
+        if self == other:
+            return 1
+        elif self < other:
+            return 0
+
+        # self > other
+        dividend, divisor, quotient = self, other, []
+        pointer = len(dividend)-1
+
+        sub_dividend = []
+        while pointer >= 0:
+            sub_dividend = Base11172(sub_dividend[::-1]+[dividend[pointer]], 1)
+
+            if sub_dividend < divisor:
+                if len(sub_dividend) != len(divisor):
+                    pointer -= 1
+                    quotient.insert(0, 0)
+                sub_dividend.data.insert(0, dividend[pointer])
+            if pointer < 0:
+                    break
+
+            sub_quotient = 0
+            while sub_dividend >= divisor:
+                sub_quotient += 1
+                sub_dividend -= divisor
+            quotient.insert(0, sub_quotient)
+            pointer -= 1
+        return Base11172(quotient[::-1], 1)
 
     # def __mod__(self, other):
     #     pass
@@ -322,12 +335,24 @@ class Base11172:
 
 
 def test():
-    a = Base11172(11171, 1)
-    b = Base11172([1, 2, 3, 4, 5], 1)
-    print(a+b)
-    print(a == (a+b)-b)
-    print(a*b)
-    print(b*a)
+    a = Base11172([1, 2, 3, 3, 6], 1)
+    b = Base11172([1, 2], 1)
+    print(a//b)
+    x = Base11172([1, 0, 2, 8], 1)
+    print(x*b)
+
+    c = Base11172([1, 2, 3, 2, 1], 1)
+    d = Base11172([1, 1], 1)
+    print(c//d)
+
+    e = Base11172([7, 7, 7, 7, 7], 1)
+    f = Base11172([9, 9], 1)
+    print(e//f)
+    # print(a+b)
+    # print(a == (a+b)-b)
+    # print(a*b)
+    # print(b*a)
+    # print(a//b)
     print()
 
 
