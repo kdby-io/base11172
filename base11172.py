@@ -89,35 +89,11 @@ class Base11172:
         # Same sign
         else:
             if self.sign == 1:
-                # different length
-                if len(self) > len(other):
-                    return 1
-                elif len(self) < len(other):
-                    return -1
-                # Same length
-                else:
-                    for i in range(len(self)-1, -1, -1):
-                        if self.data[i] > other.data[i]:
-                            return 1
-                        elif self.data[i] < other.data[i]:
-                            return -1
-                    return 0
+                return self.compare_data(other)
             elif self.sign == 0:
                 return 0
             else:   # self.sign == -1
-                # different length
-                if len(self) > len(other):
-                    return -1
-                elif len(self) < len(other):
-                    return 1
-                # Same length
-                else:
-                    for i in range(len(self)-1, -1, -1):
-                        if self.data[i] > other.data[i]:
-                            return -1
-                        elif self.data[i] < other.data[i]:
-                            return 1
-                    return 0
+                return self.compare_data(other) * -1
 
     def __eq__(self, other):
         compare = self.__cmp__(other)
@@ -162,10 +138,12 @@ class Base11172:
         if id(self) == id(other):
             return 0
 
+        # different length
         if len(self) > len(other):
             return 1
         elif len(self) < len(other):
             return -1
+        # Same length
         else:
             for i in range(len(self)-1, -1, -1):
                 if self.data[i] > other.data[i]:
@@ -208,7 +186,7 @@ class Base11172:
         else:   # Self.sign == Other.sign
             data = self.add_data(other)
             sign = self.sign
-        return Base11172(data[::-1], sign)
+        return Base11172(data, sign)
 
     def add_data(self, other):
         size = max(len(self), len(other))
@@ -217,7 +195,7 @@ class Base11172:
         for i, (a, b) in enumerate(itertools.zip_longest(*(self.data, other.data), fillvalue=0)):
             carry, data[i] = divmod(a+b+carry, BASE)
         data[-1] = carry
-        return data
+        return data[::-1]
 
     def __sub__(self, other):
         if not isinstance(other, Base11172):
@@ -230,7 +208,7 @@ class Base11172:
             return self
 
         if self.sign != other.sign:
-            data = (abs(self) + abs(other)).data
+            data = self.add_data(other)
             if self.compare_data(other) == 1:
                 sign = self.sign
             else:   # self.compare_data(other) == -1
@@ -243,7 +221,7 @@ class Base11172:
             else:
                 data = self.sub_data(other)
                 sign = self.sign
-        return Base11172(data[::-1], sign)
+        return Base11172(data, sign)
 
     def sub_data(self, other):
         size = max(len(self), len(other))
@@ -252,7 +230,7 @@ class Base11172:
         for i, (a, b) in enumerate(itertools.zip_longest(*(self.data, other.data), fillvalue=0)):
             carry, data[i] = divmod(a-b+carry, BASE)
         data[-1] = carry
-        return data
+        return data[::-1]
 
     def __mul__(self, other):
         if not isinstance(other, Base11172):
@@ -267,10 +245,10 @@ class Base11172:
             sign = -1
 
         data = self.mul_data(other)
-        return Base11172(data[::-1], sign)
+        return Base11172(data, sign)
 
     def mul_data(self, other):
-        tmps = []
+        temps = []
         for i, x in enumerate(other.data):
             tmp = [0] * (i + 1 + len(self))
             carry = 0
@@ -279,49 +257,66 @@ class Base11172:
             tmp[-1] = carry
             if tmp[-1] == 0:
                 del tmp[-1]
-            tmps.append(tmp)
+            temps.append(tmp)
 
         size = len(self) + len(other)
         data = [0] * size
         carry = 0
-        for i, x in enumerate(itertools.zip_longest(*tmps, fillvalue=0)):
+        for i, x in enumerate(itertools.zip_longest(*temps, fillvalue=0)):
             carry, data[i] = divmod(sum(x)+carry, BASE)
         if data[-1] == 0:
             data[-1] = carry
-        return data
+        return data[::-1]
 
     def __floordiv__(self, other):
         if not isinstance(other, Base11172):
             other = Base11172(other)
 
-        if self == other:
-            return 1
-        elif self < other:
+        quotient, remind = [], []
+
+        # One of both is Zero
+        if self.sign == 0:
             return 0
+        elif other.sign == 0:
+            raise ZeroDivisionError
+        if self.sign != other.sign:
+            sign = -1
+        else:
+            sign = 1
 
-        # self > other
-        dividend, divisor, quotient = self, other, []
-        pointer = len(dividend)-1
+        if self.compare_data(other) == 0:
+            quotient, remind = [1], [0]
+        elif self.compare_data(other) == -1:
+            quotient, remind = [0], self.data
+        else: # self.compare_data(other) == 1
+            dividend, divisor, quotient = self, other, []
 
-        sub_dividend = []
-        while pointer >= 0:
-            sub_dividend = Base11172(sub_dividend[::-1]+[dividend[pointer]], 1)
+            pointer = len(dividend)-1
+            sub_dividend = []
+            while pointer >= 0:
+                sub_dividend = Base11172(sub_dividend[::-1]+[dividend[pointer]], 1)
 
-            if sub_dividend < divisor:
-                if len(sub_dividend) != len(divisor):
-                    pointer -= 1
+                if sub_dividend.compare_data(divisor) != 1:
                     quotient.insert(0, 0)
-                sub_dividend.data.insert(0, dividend[pointer])
-            if pointer < 0:
-                    break
+                    pointer -= 1
+                    sub_dividend.data.insert(0, dividend[pointer])
+                if pointer < 0:
+                        break
 
-            sub_quotient = 0
-            while sub_dividend >= divisor:
-                sub_quotient += 1
-                sub_dividend -= divisor
-            quotient.insert(0, sub_quotient)
-            pointer -= 1
-        return Base11172(quotient[::-1], 1)
+                sub_quotient = 0
+                while sub_dividend.compare_data(divisor) >= 0:
+                    sub_quotient += 1
+                    sub_dividend = Base11172(sub_dividend.sub_data(divisor), 1)
+                quotient.insert(0, sub_quotient)
+                pointer -= 1
+                # remind is sub_dividend
+                remind = sub_dividend.data
+
+        quotient = Base11172(quotient[::-1], sign)
+        if remind != [0]:
+            if sign == -1:
+                quotient -= 1
+        return quotient
 
     # def __mod__(self, other):
     #     pass
@@ -335,19 +330,22 @@ class Base11172:
 
 
 def test():
-    a = Base11172([1, 2, 3, 3, 6], 1)
-    b = Base11172([1, 2], 1)
-    print(a//b)
+    a = Base11172([5,5,5,5,5,5], 1)
+    b = Base11172([9, 1, 1], 1)
+    print(a//b, 555555//911)
+    a = Base11172([5, 4, 3, 2, 1], 1)
+    b = Base11172([9, 9, 9], -1)
+    print(a//b, 54321//-999)
     x = Base11172([1, 0, 2, 8], 1)
     print(x*b)
 
     c = Base11172([1, 2, 3, 2, 1], 1)
     d = Base11172([1, 1], 1)
-    print(c//d)
+    print(c//d, 12321//11)
 
     e = Base11172([7, 7, 7, 7, 7], 1)
     f = Base11172([9, 9], 1)
-    print(e//f)
+    print(e//f, 77777//99)
     # print(a+b)
     # print(a == (a+b)-b)
     # print(a*b)
