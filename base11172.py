@@ -1,3 +1,4 @@
+# base11172.py
 import itertools
 from enum import IntEnum
 
@@ -288,7 +289,7 @@ class Base11172:
             quotient, remind = [1], [0]
         elif self.compare_data(other) == -1:
             quotient, remind = [0], self.data
-        else: # self.compare_data(other) == 1
+        else:   # self.compare_data(other) == 1
             dividend, divisor, quotient = self, other, []
 
             pointer = len(dividend)-1
@@ -350,7 +351,6 @@ def test():
     # print(a == (a+b)-b)
     # print(a*b)
     # print(b*a)
-    # print(a//b)
     print()
 
 
