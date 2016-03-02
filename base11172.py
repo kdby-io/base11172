@@ -1,8 +1,10 @@
 # base11172.py
 import itertools
 from enum import IntEnum
+import numpy as np
 
-BASE = 10
+BASE = 11172
+dt = np.dtype('i2')
 
 
 class Sign(IntEnum):
@@ -19,19 +21,22 @@ class Base11172:
         if isinstance(data, int):
             assert -BASE < data < BASE
             sign = 1 if data > 0 else 0 if data == 0 else -1
-            data = [abs(data)]
+            data = np.array([abs(data)], dtype=dt)
         elif isinstance(data, list):
             for x in data:
                 assert -BASE < x < BASE
             assert sign != 0
-            data = list(reversed(data))
+            data = np.array(data[::-1], dtype=dt)
+        elif isinstance(data, np.ndarray):
+            for x in data:
+                assert -BASE < x < BASE
+            assert sign != 0
+            data = data[::-1]
         else:
             assert False
 
         # Properties
-        self.sign = sign
-        self.data = data
-
+        self.data, self.sign = data, sign
         self.clear_zero()
 
     # Represent
@@ -62,16 +67,16 @@ class Base11172:
         self.data[degree] = coefficient
 
     def __delitem__(self, degree):
-        self.data.__delitem__(degree)
+        self.data = np.delete(self.data, degree)
 
     # Shift
     def __lshift__(self, move):
-        return Base11172(self.data[::-1] + [0] * move, self.sign)
+        return Base11172(np.append(self.data[::-1], [0]*move), self.sign)
 
     def __rshift__(self, move):
         if len(self) <= move:
-            return Base11172(0, 0)
-        return Base11172(self.data[move:], self.sign)
+            return Base11172(0)
+        return Base11172(self.data[:move-1:-1], self.sign)
 
     # Compare
     def __cmp__(self, other):
@@ -94,7 +99,7 @@ class Base11172:
             elif self.sign == 0:
                 return 0
             else:   # self.sign == -1
-                return self.compare_data(other) * -1
+                return self.compare_data(other)*-1
 
     def __eq__(self, other):
         compare = self.__cmp__(other)
@@ -191,10 +196,10 @@ class Base11172:
 
     def add_data(self, other):
         size = max(len(self), len(other))
-        data = [0] * (size+1)
+        data = np.array([0]*(size + 1), dtype=dt)
         carry = 0
         for i, (a, b) in enumerate(itertools.zip_longest(*(self.data, other.data), fillvalue=0)):
-            carry, data[i] = divmod(a+b+carry, BASE)
+            carry, data[i] = divmod(a + b + carry, BASE)
         data[-1] = carry
         return data[::-1]
 
@@ -226,10 +231,10 @@ class Base11172:
 
     def sub_data(self, other):
         size = max(len(self), len(other))
-        data = [0] * (size+1)
+        data = np.array([0]*(size + 1), dtype=dt)
         carry = 0
         for i, (a, b) in enumerate(itertools.zip_longest(*(self.data, other.data), fillvalue=0)):
-            carry, data[i] = divmod(a-b+carry, BASE)
+            carry, data[i] = divmod(a - b + carry, BASE)
         data[-1] = carry
         return data[::-1]
 
@@ -251,20 +256,20 @@ class Base11172:
     def mul_data(self, other):
         temps = []
         for i, x in enumerate(other.data):
-            tmp = [0] * (i + 1 + len(self))
+            tmp = np.array([0]*(i + 1 + len(self)), dtype=dt)
             carry = 0
             for j, y in enumerate(self.data):
-                carry, tmp[i+j] = divmod(x*y+carry, BASE)
+                carry, tmp[i+j] = divmod(x*y + carry, BASE)
             tmp[-1] = carry
             if tmp[-1] == 0:
-                del tmp[-1]
+                tmp = np.delete(tmp, -1)
             temps.append(tmp)
 
         size = len(self) + len(other)
-        data = [0] * size
+        data = np.array([0]*size, dtype=dt)
         carry = 0
         for i, x in enumerate(itertools.zip_longest(*temps, fillvalue=0)):
-            carry, data[i] = divmod(sum(x)+carry, BASE)
+            carry, data[i] = divmod(sum(x) + carry, BASE)
         if data[-1] == 0:
             data[-1] = carry
         return data[::-1]
@@ -273,87 +278,111 @@ class Base11172:
         if not isinstance(other, Base11172):
             other = Base11172(other)
 
-        quotient, remind = [], []
+        # One of both is Zero
+        if self.sign == 0:
+            return 0
+        elif other.sign == 0:
+            raise ZeroDivisionError
+        elif self.sign != other.sign:
+            sign = -1
+        else:
+            sign = 1
+
+        quotient_data, remind_data = self.floordiv_data(other)
+        quotient = Base11172(quotient_data, sign)
+        if np.all(remind_data != 0):
+            if sign == -1:
+                quotient -= 1
+        return quotient
+
+    def __mod__(self, other):
+        if not isinstance(other, Base11172):
+            other = Base11172(other)
 
         # One of both is Zero
         if self.sign == 0:
             return 0
         elif other.sign == 0:
             raise ZeroDivisionError
-        if self.sign != other.sign:
+        elif other.sign == -1:
             sign = -1
         else:
             sign = 1
 
-        if self.compare_data(other) == 0:
-            quotient, remind = [1], [0]
-        elif self.compare_data(other) == -1:
-            quotient, remind = [0], self.data
-        else:   # self.compare_data(other) == 1
-            dividend, divisor, quotient = self, other, []
+        remind_data = self.floordiv_data(other)[1]
+        if self.sign == -1 or other.sign == -1:
+            remind_data = np.subtract(np.array([BASE-1], dtype=dt), remind_data)
+        remind = Base11172(remind_data, sign)
+        return remind
 
-            pointer = len(dividend)-1
+    def __divmod__(self, other):
+        if not isinstance(other, Base11172):
+            other = Base11172(other)
+
+        # set quotient sign
+        if self.sign == 0:
+            quotient = Base11172(0)
+            remind = Base11172(0)
+            return quotient, remind
+        elif other.sign == 0:
+            raise ZeroDivisionError
+        elif self.sign != other.sign:
+            quotient_sign = -1
+        else:
+            quotient_sign = 1
+
+        # set remind sign
+        if other.sign == -1:
+            remind_sign = -1
+        else:
+            remind_sign = 1
+
+        quotient_data, remind_data = self.floordiv_data(other)
+
+        quotient = Base11172(quotient_data, quotient_sign)
+        remind = Base11172(remind_data, remind_sign)
+        return quotient, remind
+
+    def floordiv_data(self, other):
+        if self.compare_data(other) == 0:
+            quotient, remind = np.array([1], dtype=dt), np.array([0], dtype=dt)
+        elif self.compare_data(other) == -1:
+            quotient, remind = np.array([0], dtype=dt), self.data
+        else:   # self.compare_data(other) == 1
+            dividend, divisor, quotient = self, other, np.array([], dtype=dt)
+
+            pointer = len(dividend) - 1
             sub_dividend = []
             while pointer >= 0:
-                sub_dividend = Base11172(sub_dividend[::-1]+[dividend[pointer]], 1)
+                sub_dividend = Base11172(np.append(sub_dividend[::-1], [dividend[pointer]]), 1)
 
-                if sub_dividend.compare_data(divisor) != 1:
-                    quotient.insert(0, 0)
+                while sub_dividend.compare_data(divisor) != 1:
+                    quotient = np.insert(quotient, 0, np.array([0], dtype=dt))
                     pointer -= 1
-                    sub_dividend.data.insert(0, dividend[pointer])
-                if pointer < 0:
+                    if pointer < 0:
                         break
+                    sub_dividend.data = np.insert(sub_dividend.data, 0, dividend[pointer])
 
                 sub_quotient = 0
                 while sub_dividend.compare_data(divisor) >= 0:
                     sub_quotient += 1
                     sub_dividend = Base11172(sub_dividend.sub_data(divisor), 1)
-                quotient.insert(0, sub_quotient)
-                pointer -= 1
-                # remind is sub_dividend
-                remind = sub_dividend.data
 
-        quotient = Base11172(quotient[::-1], sign)
-        if remind != [0]:
-            if sign == -1:
-                quotient -= 1
-        return quotient
+                if pointer >= 0:
+                    quotient = np.insert(quotient, 0, sub_quotient)
+                    pointer -= 1
 
-    # def __mod__(self, other):
-    #     pass
+            # remind is sub_dividend
+            remind = sub_dividend.data
+        return quotient[::-1], remind[::-1]
 
     def clear_zero(self):
         for i in range(len(self)-1, -1, -1):
                 if i != 0 and self.data[i] == 0:
-                    del self.data[i]
+                    del self[i]
                 else:
                     break
 
 
-def test():
-    a = Base11172([5,5,5,5,5,5], 1)
-    b = Base11172([9, 1, 1], 1)
-    print(a//b, 555555//911)
-    a = Base11172([5, 4, 3, 2, 1], 1)
-    b = Base11172([9, 9, 9], -1)
-    print(a//b, 54321//-999)
-    x = Base11172([1, 0, 2, 8], 1)
-    print(x*b)
-
-    c = Base11172([1, 2, 3, 2, 1], 1)
-    d = Base11172([1, 1], 1)
-    print(c//d, 12321//11)
-
-    e = Base11172([7, 7, 7, 7, 7], 1)
-    f = Base11172([9, 9], 1)
-    print(e//f, 77777//99)
-    # print(a+b)
-    # print(a == (a+b)-b)
-    # print(a*b)
-    # print(b*a)
-    print()
-
-
 if __name__ == '__main__':
-    # cProfile.run("test()")
-    test()
+    pass
