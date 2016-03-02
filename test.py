@@ -4,7 +4,7 @@ import random
 
 
 def withBase11172():
-    BASE = 11172    # number of Korean Unicode
+    BASE = Base11172.base(11172)    # number of Korean Unicode
     MAX_CHAR = 40   # number of chars per line
     MAX_LINE = 40   # number of lines per page
     MAX_PAGE = 410  # number of pages per book
@@ -44,35 +44,35 @@ def withoutBase11172():
 
 
 if __name__ == "__main__":
-    print(" [*] Start withBase11172()")
-    cProfile.run("withBase11172()")
-    print(" [*] Finish withBase11172()")
-
-    print(" [*] Start withoutBase11172()")
-    cProfile.run("withoutBase11172()")
-    print(" [*] Finish withoutBase11172()")
-
+    # print(" [*] Start withBase11172()")
+    # cProfile.run("withBase11172()")
+    # print(" [*] Finish withBase11172()")
+    #
+    # print(" [*] Start withoutBase11172()")
+    # cProfile.run("withoutBase11172()")
+    # print(" [*] Finish withoutBase11172()")
     # arithmetic
-    # a = Base11172([1,2,3,4,5], 1)
-    # b = Base11172([1,2], 1)
-    # print(a*b, 12345*12)
-    # a = Base11172([5, 4, 3, 2, 1], -1)
-    # b = Base11172([9, 9, 9], 1)
-    # print(a//b, a%b, divmod(-54321, 999))
-    # a = Base11172([5, 4, 3, 2, 1], 1)
-    # b = Base11172([9, 9, 9], -1)
-    # print(a//b, a%b, divmod(54321, -999))
-    # x = Base11172([1, 0, 2, 8], 1)
-    # print(x*b)
-    #
-    # c = Base11172([1, 2, 3, 2, 1], 1)
-    # d = Base11172([1, 1], 1)
-    # print(c//d, c%d, divmod(12321, 11))
-    #
-    # e = Base11172([7, 7, 7, 7, 7], 1)
-    # f = Base11172([9, 9], 1)
-    # print(e//f, e%f, divmod(77777, 99))
-    # print(a+b)
-    # print(a == (a+b)-b)
-    # print(a*b)
-    # print(b*a)
+    Base11172.base(10)
+    a = Base11172([1,2,3,4,5], 1)
+    b = Base11172([1,2], 1)
+    print(a*b, 12345*12)
+    a = Base11172([5, 4, 3, 2, 1], -1)
+    b = Base11172([9, 9, 9], 1)
+    print(divmod(a, b), divmod(-54321, 999))
+    a = Base11172([5, 4, 3, 2, 1], 1)
+    b = Base11172([9, 9, 9], -1)
+    print(divmod(a, b), divmod(54321, -999))
+    x = Base11172([1, 0, 2, 8], 1)
+    print(x*b)
+
+    c = Base11172([1, 2, 3, 2, 1], 1)
+    d = Base11172([1, 1], 1)
+    print(divmod(c, d), divmod(12321, 11))
+
+    e = Base11172([7, 7, 7, 7, 7], 1)
+    f = Base11172([9, 9], 1)
+    print(divmod(e, f), divmod(77777, 99))
+    print(a+b)
+    print(a == (a+b)-b)
+    print(a*b)
+    print(b*a)

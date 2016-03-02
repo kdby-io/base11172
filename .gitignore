@@ -1,3 +1,6 @@
 .idea/
 *.sublime-*
 __pycache__/
+
+base11172_np.py
+function.py
