@@ -1,6 +1,7 @@
 from base11172 import Base11172
 import cProfile
 import random
+import timeit
 
 
 def withBase11172():
@@ -62,8 +63,6 @@ if __name__ == "__main__":
     a = Base11172([5, 4, 3, 2, 1], 1)
     b = Base11172([9, 9, 9], -1)
     print(divmod(a, b), divmod(54321, -999))
-    x = Base11172([1, 0, 2, 8], 1)
-    print(x*b)
 
     c = Base11172([1, 2, 3, 2, 1], 1)
     d = Base11172([1, 1], 1)
@@ -72,7 +71,10 @@ if __name__ == "__main__":
     e = Base11172([7, 7, 7, 7, 7], 1)
     f = Base11172([9, 9], 1)
     print(divmod(e, f), divmod(77777, 99))
-    print(a+b)
+    print(a+b, 54321+999)
     print(a == (a+b)-b)
     print(a*b)
     print(b*a)
+    x = Base11172([1,2,3], -1)
+    y = Base11172([1,2,3], 1)
+    print(x+y)

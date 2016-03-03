@@ -1,6 +1,7 @@
 # base11172.py
 import itertools
 from enum import IntEnum
+from collections import deque
 # import numpy as np
 
 # BASE = 11172
@@ -32,7 +33,6 @@ class Base11172:
         elif isinstance(data, list):
             for x in data:
                 assert -self.BASE < x < self.BASE
-            assert sign != 0
             # data = np.array(data[::-1], dtype=dt)
             data = data[::-1]
         else:
@@ -191,6 +191,8 @@ class Base11172:
             data = self.sub_data(other)
             if self.compare_data(other) == 1:
                 sign = self.sign
+            elif self.compare_data(other) == 0:
+                sign = 0
             else:   # self.compare_data(other) == -1
                 sign = other.sign
 
@@ -207,6 +209,15 @@ class Base11172:
         for i, (a, b) in enumerate(itertools.zip_longest(*(self.data, other.data), fillvalue=0)):
             carry, data[i] = divmod(a + b + carry, self.BASE)
         data[-1] = carry
+        # data = [a + b for a, b in itertools.zip_longest(*(self.data, other.data), fillvalue=0)] + [0]
+        # carry = [0 for _ in range(len(data))]
+        # while True:
+        #     data = [x + c for x, c in itertools.zip_longest(*(data, carry))]
+        #     carry = deque([x//self.BASE for x in data])
+        #     carry.rotate(1)
+        #     if carry == deque([0 for _ in range(len(data))]):
+        #         break
+        #     data = [x%self.BASE for x in data]
         return data[::-1]
 
     def __sub__(self, other):
@@ -223,16 +234,21 @@ class Base11172:
             data = self.add_data(other)
             if self.compare_data(other) == 1:
                 sign = self.sign
+            elif self.compare_data(other) == 0:
+                sign = 0
             else:   # self.compare_data(other) == -1
                 sign = other.sign
 
         else:   # Self.sign == Other.sign
-            if self.compare_data(other) < 0:
-                data = other.sub_data(self)
-                sign = -1
-            else:
+            if self.compare_data(other) == 1:
                 data = self.sub_data(other)
                 sign = self.sign
+            elif self.compare_data(other) == 0:
+                data = 0
+                sign = 0
+            else:
+                data = other.sub_data(self)
+                sign = -1
         return Base11172(data, sign)
 
     def sub_data(self, other):
@@ -251,7 +267,7 @@ class Base11172:
 
         # One of both is Zero
         if self.sign == 0 or other.sign == 0:
-            return 0
+            return Base11172(0)
         if self.sign == other.sign:
             sign = 1
         else:
@@ -290,7 +306,7 @@ class Base11172:
 
         # One of both is Zero
         if self.sign == 0:
-            return 0
+            return Base11172(0)
         elif other.sign == 0:
             raise ZeroDivisionError
         elif self.sign != other.sign:
@@ -312,7 +328,7 @@ class Base11172:
 
         # One of both is Zero
         if self.sign == 0:
-            return 0
+            return Base11172(0)
         elif other.sign == 0:
             raise ZeroDivisionError
         elif other.sign == -1:
@@ -378,16 +394,13 @@ class Base11172:
             pointer = len(dividend) - 1
             sub_dividend = []
             while pointer >= 0:
-                # sub_dividend = Base11172(np.append(sub_dividend[::-1], [dividend[pointer]]), 1)
                 sub_dividend = Base11172(sub_dividend[::-1] + [dividend[pointer]], 1)
 
                 while sub_dividend.compare_data(divisor) != 1:
-                    # quotient = np.insert(quotient, 0, np.array([0], dtype=dt))
                     quotient.insert(0, 0)
                     pointer -= 1
                     if pointer < 0:
                         break
-                    # sub_dividend.data = np.insert(sub_dividend.data, 0, dividend[pointer])
                     sub_dividend.data.insert(0, dividend[pointer])
 
                 sub_quotient = 0
@@ -396,11 +409,9 @@ class Base11172:
                     sub_dividend = Base11172(sub_dividend.sub_data(divisor), 1)
 
                 if pointer >= 0:
-                    # quotient = np.insert(quotient, 0, sub_quotient)
-                    quotient.insert(0, sub_quotient[:])
+                    quotient.insert(0, sub_quotient)
                     pointer -= 1
 
-            # remind is sub_dividend
             remind = sub_dividend.data
         return quotient[::-1], remind[::-1]
 
